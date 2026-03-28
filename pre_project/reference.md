@@ -31,11 +31,15 @@
 - 支持分页显示
 
 **快捷键控制：**
-- `Ctrl + ↑/↓` 或 `Ctrl + 滚轮`：调整透明度（增减10%）
-- `Ctrl + ←/→`：调整窗口宽度（增减50px）
-- `Ctrl + Shift + ←/→`：调整窗口高度（增减50px）
-- `PageUp/PageDown` 或 `↑/↓`：翻页
-- `Esc`：隐藏/退出阅读器
+- `Ctrl + ↑/↓/←/→` ：移动窗口位置（注：会占用系统虚拟桌面快捷键）
+- `Ctrl + Shift + 1/2`：调整透明度（增减10%）
+- `Ctrl + Shift + 3/4`：调整窗口宽窄（增减50px）
+- `Ctrl + Shift + 5/6`：调整窗口高度（增减50px）
+- `PageUp/PageDown` 或 `Ctrl + Shift + ↑/↓`：翻页
+- `Ctrl + Q`：退出阅读器
+- `Ctrl + B`：隐藏/显示阅读器窗口
+
+> **⚠️ 权限说明**：全局快捷键需要管理员权限运行，普通启动时快捷键功能将不可用
 
 ---
 
@@ -161,7 +165,9 @@ Windows 下实现防录屏窗口的关键：
 │ ║    这是要阅读的内容...               ║ │
 │ ║                                     ║ │
 │ ║    按 PageDown 翻页                  ║ │
-│ ║    按 Ctrl+滚轮 调透明度             ║ │
+│ ║    按 Ctrl+Shift+1/2 调透明度        ║ │
+│ ║    按 Ctrl+Shift+3/4/5/6 调窗口大小  ║ │
+│ ║    按 Ctrl+Q 退出, Ctrl+B 隐藏       ║ │
 │ ║                                     ║ │
 │ ╚═════════════════════════════════════╝ │
 └─────────────────────────────────────────┘
@@ -227,10 +233,13 @@ Windows 下实现防录屏窗口的关键：
 ### 阶段三：高级功能开发（第5-6天）
 
 **第5天：快捷键系统**
-- [ ] 全局快捷键监听（keyboard库）
-- [ ] 透明度调节（Ctrl + 滚轮）
-- [ ] 窗口尺寸调节（Ctrl + 方向键）
-- [ ] 翻页功能（PageUp/PageDown）
+- [ ] 全局快捷键监听（keyboard库，需管理员权限）
+- [ ] 窗口位置移动（Ctrl + ↑/↓/←/→）
+- [ ] 透明度调节（Ctrl + Shift + 1/2）
+- [ ] 窗口尺寸调节（Ctrl + Shift + 3/4/5/6）
+- [ ] 翻页功能（PageUp/PageDown、Ctrl + Shift + ↑/↓）
+- [ ] 退出阅读器（Ctrl + Q）
+- [ ] 隐藏/显示窗口（Ctrl + B）
 
 **第6天：阅读器完善**
 - [ ] 分页算法（根据窗口大小自动分页）
@@ -268,16 +277,34 @@ windll.user32.SetWindowDisplayAffinity(hwnd, WDA_MONITOR)
 ### 6.2 快捷键处理
 
 ```python
-# 使用 keyboard 库监听全局快捷键
+# 使用 keyboard 库监听全局快捷键（需管理员权限运行）
 import keyboard
 
+# 窗口位置移动
+keyboard.on_hotkey('ctrl+up', move_window_up)
+keyboard.on_hotkey('ctrl+down', move_window_down)
+keyboard.on_hotkey('ctrl+left', move_window_left)
+keyboard.on_hotkey('ctrl+right', move_window_right)
+
 # 透明度调节
-keyboard.on_hotkey('ctrl+up', increase_opacity)
-keyboard.on_hotkey('ctrl+down', decrease_opacity)
+keyboard.on_hotkey('ctrl+shift+1', increase_opacity)
+keyboard.on_hotkey('ctrl+shift+2', decrease_opacity)
+
+# 窗口尺寸调节
+keyboard.on_hotkey('ctrl+shift+3', increase_width)
+keyboard.on_hotkey('ctrl+shift+4', decrease_width)
+keyboard.on_hotkey('ctrl+shift+5', increase_height)
+keyboard.on_hotkey('ctrl+shift+6', decrease_height)
 
 # 翻页
 keyboard.on_key('pageup', prev_page)
 keyboard.on_key('pagedown', next_page)
+keyboard.on_hotkey('ctrl+shift+up', prev_page)
+keyboard.on_hotkey('ctrl+shift+down', next_page)
+
+# 退出和隐藏
+keyboard.on_hotkey('ctrl+q', exit_reader)
+keyboard.on_hotkey('ctrl+b', toggle_visibility)
 ```
 
 ### 6.3 分页算法
@@ -317,15 +344,22 @@ def calculate_pages(text, window_width, window_height, font_metrics):
     "always_on_top": true
   },
   "hotkeys": {
-    "opacity_up": "ctrl+up",
-    "opacity_down": "ctrl+down",
-    "width_increase": "ctrl+right",
-    "width_decrease": "ctrl+left",
-    "height_increase": "ctrl+shift+right",
-    "height_decrease": "ctrl+shift+left",
+    "move_up": "ctrl+up",
+    "move_down": "ctrl+down",
+    "move_left": "ctrl+left",
+    "move_right": "ctrl+right",
+    "opacity_up": "ctrl+shift+1",
+    "opacity_down": "ctrl+shift+2",
+    "width_increase": "ctrl+shift+3",
+    "width_decrease": "ctrl+shift+4",
+    "height_increase": "ctrl+shift+5",
+    "height_decrease": "ctrl+shift+6",
     "page_up": "pageup",
     "page_down": "pagedown",
-    "exit": "esc"
+    "page_up_alt": "ctrl+shift+up",
+    "page_down_alt": "ctrl+shift+down",
+    "exit": "ctrl+q",
+    "toggle_visibility": "ctrl+b"
   },
   "documents": [
     {
@@ -346,11 +380,12 @@ def calculate_pages(text, window_width, window_height, font_metrics):
 
 | 风险 | 影响 | 应对方案 |
 |------|------|----------|
-| `SetWindowDisplayAffinity` 仅Win10 2004+支持 | 旧系统无法防录屏 | 检测系统版本，旧系统提示功能受限 |
-| 某些录屏软件可能绕过此API | 安全性降低 | 明确告知用户这是辅助功能，非绝对安全 |
-| 快捷键与其他软件冲突 | 功能失效 | 提供自定义快捷键设置 |
-| 大文档加载慢 | 用户体验差 | 实现分页加载，延迟渲染 |
-| PDF解析复杂 | 开发周期长 | 优先支持纯文本，PDF用pymupdf简化处理 |
+| `SetWindowDisplayAffinity` 仅Win10 2004+支持 | 旧系统无法防录屏 | 检测系统版本，旧系统提示功能受限；考虑替代方案如 `SetWindowRgn` + 混淆层 |
+| 某些录屏软件可能绕过此API | 安全性降低 | 明确告知用户这是辅助功能，非绝对安全；可叠加窗口抖动/水印 |
+| 快捷键需要管理员权限 | 普通用户无法使用 | 启动时检测权限，提示用户以管理员运行；提供非全局快捷键备选 |
+| `Ctrl + 方向键` 抢占系统虚拟桌面快捷键 | 用户无法使用系统功能 | 提供自定义快捷键设置；首次启动提示冲突 |
+| 大文档加载慢 | 用户体验差 | 实现分页加载，延迟渲染；使用生成器逐块读取 |
+| PDF解析复杂 | 开发周期长 | 优先支持纯文本，PDF用pymupdf简化处理；复杂PDF仅提取文字放弃格式 |
 
 ---
 

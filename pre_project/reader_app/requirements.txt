@@ -1,0 +1,17 @@
+# 悬浮阅读器依赖列表
+
+# GUI框架
+PyQt6>=6.4.0
+
+# Windows API调用
+pywin32>=306
+
+# 文档解析
+pymupdf>=1.23.0
+python-docx>=0.8.11
+
+# 全局快捷键监听
+keyboard>=0.13.5
+
+# 其他工具
+pyyaml>=6.0
